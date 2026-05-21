@@ -1,0 +1,198 @@
+"use client";
+
+import { Topbar } from "@/components/layout/topbar";
+import { useState } from "react";
+import {
+  Search,
+  Plus,
+  User,
+  Phone,
+  FileText,
+  ChevronRight,
+  Filter,
+} from "lucide-react";
+import Link from "next/link";
+
+// Datos de ejemplo hasta conectar Supabase
+const mockPatients = [
+  {
+    id: "1",
+    recordNumber: "HC-2024-0001",
+    firstName: "Maria",
+    lastName: "Garcia Lopez",
+    dni: "12345678",
+    phone: "999-111-222",
+    birthDate: "1985-03-15",
+    lastVisit: "2025-05-10",
+    nextAppointment: "2025-05-25",
+  },
+  {
+    id: "2",
+    recordNumber: "HC-2024-0002",
+    firstName: "Carlos",
+    lastName: "Rios Mendoza",
+    dni: "87654321",
+    phone: "987-654-321",
+    birthDate: "1992-07-22",
+    lastVisit: "2025-05-15",
+    nextAppointment: null,
+  },
+];
+
+export default function PacientesPage() {
+  const [search, setSearch] = useState("");
+
+  const filtered = mockPatients.filter(
+    (p) =>
+      p.firstName.toLowerCase().includes(search.toLowerCase()) ||
+      p.lastName.toLowerCase().includes(search.toLowerCase()) ||
+      p.dni.includes(search) ||
+      p.recordNumber.includes(search)
+  );
+
+  const calcAge = (birthDate: string) => {
+    const diff = Date.now() - new Date(birthDate).getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+  };
+
+  return (
+    <>
+      <Topbar title="Pacientes" subtitle="Gestion de historias clinicas" />
+      <div className="flex-1 overflow-y-auto p-6 space-y-5">
+
+        {/* Barra de herramientas */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-60">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nombre, DNI o N° historia..."
+              className="w-full pl-9 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#2daa9b]/30 focus:border-[#2daa9b]"
+            />
+          </div>
+          <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+            <Filter className="w-4 h-4" />
+            Filtrar
+          </button>
+          <Link
+            href="/pacientes/nuevo"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#2daa9b] text-white text-sm font-medium hover:bg-[#1e8a7d] transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo Paciente
+          </Link>
+        </div>
+
+        {/* Tabla */}
+        <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100">
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    Paciente
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+                    DNI
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider hidden md:table-cell">
+                    Contacto
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider hidden lg:table-cell">
+                    Ultima visita
+                  </th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-slate-500 uppercase tracking-wider hidden lg:table-cell">
+                    Prox. cita
+                  </th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="text-center py-12 text-slate-400">
+                      <User className="w-10 h-10 mx-auto mb-2 text-slate-200" />
+                      {search ? "No se encontraron pacientes" : "No hay pacientes registrados"}
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((patient) => (
+                    <tr
+                      key={patient.id}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-[#e8f7f6] flex items-center justify-center shrink-0">
+                            <span className="text-[#2daa9b] font-semibold text-sm">
+                              {patient.firstName[0]}{patient.lastName[0]}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-800">
+                              {patient.firstName} {patient.lastName}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              {patient.recordNumber} · {calcAge(patient.birthDate)} años
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 font-mono text-xs">
+                        {patient.dni}
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <div className="flex items-center gap-1 text-slate-600">
+                          <Phone className="w-3 h-3" />
+                          {patient.phone}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">
+                        {patient.lastVisit
+                          ? new Date(patient.lastVisit).toLocaleDateString("es-PE")
+                          : "—"}
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        {patient.nextAppointment ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-[#e8f7f6] text-[#2daa9b] font-medium">
+                            {new Date(patient.nextAppointment).toLocaleDateString("es-PE")}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">Sin cita</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2 justify-end">
+                          <Link
+                            href={`/pacientes/${patient.id}`}
+                            className="p-1.5 rounded-lg hover:bg-[#e8f7f6] text-slate-400 hover:text-[#2daa9b] transition-colors"
+                            title="Ver historia"
+                          >
+                            <FileText className="w-4 h-4" />
+                          </Link>
+                          <Link
+                            href={`/pacientes/${patient.id}`}
+                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          {filtered.length > 0 && (
+            <div className="px-4 py-3 border-t border-slate-100 text-xs text-slate-400">
+              {filtered.length} paciente{filtered.length !== 1 ? "s" : ""} encontrado{filtered.length !== 1 ? "s" : ""}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

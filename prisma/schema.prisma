@@ -1,0 +1,594 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────
+// USUARIOS Y ROLES
+// ─────────────────────────────────────────
+enum UserRole {
+  ADMIN
+  DOCTOR
+  ASSISTANT
+  RECEPTIONIST
+}
+
+model User {
+  id            String   @id @default(cuid())
+  supabaseId    String   @unique
+  email         String   @unique
+  name          String
+  role          UserRole @default(RECEPTIONIST)
+  specialty     String?
+  phone         String?
+  commissionPct Float    @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  appointments      Appointment[]
+  clinicalNotes     ClinicalNote[]
+  prescriptions     Prescription[]
+  commissions       Commission[]
+  labOrders         LabOrder[]
+  sterilizationLogs SterilizationLog[]
+}
+
+// ─────────────────────────────────────────
+// PACIENTES
+// ─────────────────────────────────────────
+model Patient {
+  id            String    @id @default(cuid())
+  recordNumber  String    @unique
+  dni           String    @unique
+  firstName     String
+  lastName      String
+  birthDate     DateTime
+  gender        String
+  phone         String
+  whatsapp      String?
+  email         String?
+  address       String?
+  referredById  String?
+  referredBy    Patient?  @relation("Referrals", fields: [referredById], references: [id])
+  referrals     Patient[] @relation("Referrals")
+  loyaltyPoints Int       @default(0)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  medicalHistory  MedicalHistory?
+  odontogram      Odontogram?
+  periodontal     PeriodontalChart[]
+  appointments    Appointment[]
+  clinicalNotes   ClinicalNote[]
+  images          ClinicalImage[]
+  quotes          Quote[]
+  payments        Payment[]
+  prescriptions   Prescription[]
+  consents        Consent[]
+  labOrders       LabOrder[]
+  orthodonticCase OrthodonticCase?
+  pointsLog       PointTransaction[]
+  whatsappLogs    WhatsAppLog[]
+}
+
+// ─────────────────────────────────────────
+// HISTORIA CLINICA / ANAMNESIS
+// ─────────────────────────────────────────
+model MedicalHistory {
+  id                  String    @id @default(cuid())
+  patientId           String    @unique
+  patient             Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  allergies           String[]
+  allergyNotes        String?
+  hasHypertension     Boolean   @default(false)
+  hasDiabetes         Boolean   @default(false)
+  hasHeartDisease     Boolean   @default(false)
+  hasAsthma           Boolean   @default(false)
+  hasEpilepsy         Boolean   @default(false)
+  hasHIV              Boolean   @default(false)
+  hasCoagulationIssue Boolean   @default(false)
+  otherConditions     String?
+  currentMedications  String?
+  lastDentalVisit     DateTime?
+  previousTreatments  String?
+  dentalAnxietyLevel  Int?
+  isPregnant          Boolean?
+  pregnancyWeeks      Int?
+  notes               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+}
+
+// ─────────────────────────────────────────
+// ODONTOGRAMA
+// ─────────────────────────────────────────
+enum OdontogramType {
+  ADULT
+  PEDIATRIC
+}
+
+model Odontogram {
+  id        String         @id @default(cuid())
+  patientId String         @unique
+  patient   Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type      OdontogramType @default(ADULT)
+  teeth     ToothState[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+enum ToothStatus {
+  HEALTHY
+  CARIES
+  FILLED
+  ROOT_CANAL
+  CROWN
+  BRIDGE_ABUTMENT
+  MISSING
+  IMPLANT
+  IMPACTED
+  FRACTURE
+  EXTRACTION_INDICATED
+}
+
+model ToothState {
+  id           String      @id @default(cuid())
+  odontogramId String
+  odontogram   Odontogram  @relation(fields: [odontogramId], references: [id], onDelete: Cascade)
+  fdiCode      String
+  status       ToothStatus @default(HEALTHY)
+  surfaces     String[]
+  notes        String?
+  isPlanned    Boolean     @default(false)
+  color        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([odontogramId, fdiCode])
+}
+
+// ─────────────────────────────────────────
+// PERIODONTOGRAMA
+// ─────────────────────────────────────────
+model PeriodontalChart {
+  id         String             @id @default(cuid())
+  patientId  String
+  patient    Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  chartDate  DateTime           @default(now())
+  plaqIndex  Float?
+  bleedIndex Float?
+  notes      String?
+  createdAt  DateTime           @default(now())
+  teeth      PeriodontalTooth[]
+}
+
+model PeriodontalTooth {
+  id            String           @id @default(cuid())
+  chartId       String
+  chart         PeriodontalChart @relation(fields: [chartId], references: [id], onDelete: Cascade)
+  fdiCode       String
+  probingDepths Int[]
+  recessions    Int[]
+  furcation     Int              @default(0)
+  mobility      Int              @default(0)
+  bleeding      Boolean[]
+  suppuration   Boolean          @default(false)
+}
+
+// ─────────────────────────────────────────
+// AGENDA Y CITAS
+// ─────────────────────────────────────────
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  IN_WAITING_ROOM
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+model Appointment {
+  id           String            @id @default(cuid())
+  patientId    String
+  patient      Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId     String
+  doctor       User              @relation(fields: [doctorId], references: [id])
+  startTime    DateTime
+  endTime      DateTime
+  status       AppointmentStatus @default(PENDING)
+  treatment    String?
+  notes        String?
+  reminderSent Boolean           @default(false)
+  colorTag     String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  whatsappLogs WhatsAppLog[]
+}
+
+// ─────────────────────────────────────────
+// EVOLUCIONES / NOTAS CLINICAS
+// ─────────────────────────────────────────
+model ClinicalNote {
+  id          String   @id @default(cuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId    String
+  doctor      User     @relation(fields: [doctorId], references: [id])
+  noteDate    DateTime @default(now())
+  procedure   String
+  toothCode   String?
+  description String
+  materials   String?
+  nextSession String?
+  audioUrl    String?
+  createdAt   DateTime @default(now())
+}
+
+// ─────────────────────────────────────────
+// IMAGENES CLINICAS
+// ─────────────────────────────────────────
+enum ImageType {
+  XRAY_PANORAMIC
+  XRAY_PERIAPICAL
+  XRAY_BITEWING
+  INTRAORAL_PHOTO
+  EXTRAORAL_PHOTO
+  STUDY_MODEL
+  OTHER
+}
+
+model ClinicalImage {
+  id           String    @id @default(cuid())
+  patientId    String
+  patient      Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type         ImageType
+  url          String
+  thumbnailUrl String?
+  description  String?
+  toothCode    String?
+  takenAt      DateTime  @default(now())
+  uploadedAt   DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────
+// PRESUPUESTOS
+// ─────────────────────────────────────────
+enum QuoteStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+  PARTIAL
+  PAID
+}
+
+model Quote {
+  id          String      @id @default(cuid())
+  patientId   String
+  patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  quoteNumber String      @unique
+  status      QuoteStatus @default(DRAFT)
+  validUntil  DateTime?
+  subtotal    Float
+  discount    Float       @default(0)
+  total       Float
+  notes       String?
+  pdfUrl      String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  items    QuoteItem[]
+  payments Payment[]
+}
+
+model QuoteItem {
+  id        String  @id @default(cuid())
+  quoteId   String
+  quote     Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  treatment String
+  toothCode String?
+  quantity  Int     @default(1)
+  unitPrice Float
+  discount  Float   @default(0)
+  total     Float
+}
+
+// ─────────────────────────────────────────
+// PAGOS
+// ─────────────────────────────────────────
+enum PaymentMethod {
+  CASH
+  CARD_CREDIT
+  CARD_DEBIT
+  YAPE
+  PLIN
+  TRANSFER
+  OTHER
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  patientId String
+  patient   Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  quoteId   String?
+  quote     Quote?        @relation(fields: [quoteId], references: [id])
+  amount    Float
+  method    PaymentMethod
+  reference String?
+  notes     String?
+  paidAt    DateTime      @default(now())
+  createdAt DateTime      @default(now())
+
+  commissions Commission[]
+}
+
+// ─────────────────────────────────────────
+// COMISIONES
+// ─────────────────────────────────────────
+model Commission {
+  id         String    @id @default(cuid())
+  doctorId   String
+  doctor     User      @relation(fields: [doctorId], references: [id])
+  paymentId  String
+  payment    Payment   @relation(fields: [paymentId], references: [id])
+  percentage Float
+  amount     Float
+  isPaid     Boolean   @default(false)
+  paidAt     DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+// ─────────────────────────────────────────
+// INVENTARIO
+// ─────────────────────────────────────────
+enum InventoryCategory {
+  ANESTHESIA
+  RESIN
+  CEMENT
+  GLOVES
+  MASKS
+  STERILIZATION
+  INSTRUMENTS
+  RADIOLOGY
+  ORTHODONTICS
+  OTHER
+}
+
+model InventoryItem {
+  id           String            @id @default(cuid())
+  name         String
+  category     InventoryCategory
+  sku          String?           @unique
+  unit         String
+  currentStock Float
+  minStock     Float
+  costPrice    Float?
+  supplier     String?
+  expiryDate   DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  movements InventoryMovement[]
+}
+
+model InventoryMovement {
+  id        String        @id @default(cuid())
+  itemId    String
+  item      InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  type      String
+  quantity  Float
+  reason    String?
+  patientId String?
+  createdAt DateTime      @default(now())
+}
+
+// ─────────────────────────────────────────
+// RECETAS
+// ─────────────────────────────────────────
+model Prescription {
+  id          String             @id @default(cuid())
+  patientId   String
+  patient     Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId    String
+  doctor      User               @relation(fields: [doctorId], references: [id])
+  diagnosis   String?
+  postOpNotes String?
+  pdfUrl      String?
+  createdAt   DateTime           @default(now())
+
+  items PrescriptionItem[]
+}
+
+model PrescriptionItem {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medication     String
+  dosage         String
+  frequency      String
+  duration       String
+  instructions   String?
+}
+
+// ─────────────────────────────────────────
+// CONSENTIMIENTOS INFORMADOS
+// ─────────────────────────────────────────
+enum ConsentType {
+  GENERAL
+  ORTHODONTICS
+  SURGERY
+  ENDODONTICS
+  IMPLANT
+  WHITENING
+  PEDIATRIC
+}
+
+model Consent {
+  id           String      @id @default(cuid())
+  patientId    String
+  patient      Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type         ConsentType
+  content      String
+  signatureUrl String?
+  signedAt     DateTime?
+  pdfUrl       String?
+  createdAt    DateTime    @default(now())
+}
+
+// ─────────────────────────────────────────
+// ORTODONCIA
+// ─────────────────────────────────────────
+model OrthodonticCase {
+  id               String    @id @default(cuid())
+  patientId        String    @unique
+  patient          Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  startDate        DateTime
+  estimatedEndDate DateTime?
+  actualEndDate    DateTime?
+  bracketType      String?
+  upperArch        String?
+  lowerArch        String?
+  elastics         String?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  photos   OrthodonticPhoto[]
+  sessions OrthodonticSession[]
+}
+
+model OrthodonticPhoto {
+  id      String          @id @default(cuid())
+  caseId  String
+  case    OrthodonticCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  url     String
+  angle   String
+  takenAt DateTime        @default(now())
+}
+
+model OrthodonticSession {
+  id        String          @id @default(cuid())
+  caseId    String
+  case      OrthodonticCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  date      DateTime        @default(now())
+  procedure String
+  notes     String?
+  nextDate  DateTime?
+}
+
+// ─────────────────────────────────────────
+// LABORATORIO DENTAL
+// ─────────────────────────────────────────
+enum LabOrderStatus {
+  PENDING
+  IN_LAB
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+model LabOrder {
+  id            String         @id @default(cuid())
+  patientId     String
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      String
+  doctor        User           @relation(fields: [doctorId], references: [id])
+  labName       String
+  workType      String
+  toothCode     String?
+  color         String?
+  instructions  String?
+  sentDate      DateTime       @default(now())
+  estimatedDate DateTime?
+  receivedDate  DateTime?
+  status        LabOrderStatus @default(PENDING)
+  cost          Float?
+  notes         String?
+}
+
+// ─────────────────────────────────────────
+// ESTERILIZACION
+// ─────────────────────────────────────────
+model SterilizationLog {
+  id          String   @id @default(cuid())
+  operatorId  String
+  operator    User     @relation(fields: [operatorId], references: [id])
+  cycleNumber String
+  date        DateTime @default(now())
+  temperature Float
+  pressure    Float
+  duration    Int
+  instruments String[]
+  passed      Boolean
+  notes       String?
+}
+
+// ─────────────────────────────────────────
+// FIDELIZACION
+// ─────────────────────────────────────────
+model PointTransaction {
+  id          String   @id @default(cuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  points      Int
+  reason      String
+  referenceId String?
+  createdAt   DateTime @default(now())
+}
+
+// ─────────────────────────────────────────
+// WHATSAPP / CRM
+// ─────────────────────────────────────────
+enum WhatsAppLogType {
+  APPOINTMENT_REMINDER
+  BIRTHDAY
+  REACTIVATION
+  CAMPAIGN
+  MANUAL
+}
+
+model WhatsAppLog {
+  id            String          @id @default(cuid())
+  patientId     String
+  patient       Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointmentId String?
+  appointment   Appointment?    @relation(fields: [appointmentId], references: [id])
+  type          WhatsAppLogType
+  message       String
+  status        String
+  sentAt        DateTime        @default(now())
+}
+
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  type        String
+  message     String
+  sentCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  scheduledAt DateTime?
+  executedAt  DateTime?
+}
+
+// ─────────────────────────────────────────
+// AUDITORIA
+// ─────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now())
+}
