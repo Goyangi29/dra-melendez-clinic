@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/auth";
 import { z } from "zod";
 
 const CreateNoteSchema = z.object({
@@ -16,12 +17,15 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    const authUser = await getAuthUser();
     const body = await req.json();
     const data = CreateNoteSchema.parse(body);
 
     const note = await prisma.clinicalNote.create({
       data: {
         patientId: id,
+        clinicId: authUser?.clinicId ?? null,
+        doctorId: authUser?.id ?? null,
         noteDate: new Date(),
         diagnosis: data.diagnosis || null,
         treatment: data.treatment || null,

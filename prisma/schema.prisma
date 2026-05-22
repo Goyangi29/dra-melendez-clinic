@@ -8,6 +8,33 @@ datasource db {
 }
 
 // ─────────────────────────────────────────
+// CLINICA (TENANT)
+// ─────────────────────────────────────────
+model Clinic {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  email     String   @unique
+  phone     String?
+  address   String?
+  logoUrl   String?
+  plan      String   @default("starter")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  patients      Patient[]
+  appointments  Appointment[]
+  clinicalNotes ClinicalNote[]
+  quotes        Quote[]
+  payments      Payment[]
+  inventory     InventoryItem[]
+  prescriptions Prescription[]
+  campaigns     Campaign[]
+}
+
+// ─────────────────────────────────────────
 // USUARIOS Y ROLES
 // ─────────────────────────────────────────
 enum UserRole {
@@ -22,11 +49,13 @@ model User {
   supabaseId    String   @unique
   email         String   @unique
   name          String
-  role          UserRole @default(RECEPTIONIST)
+  role          UserRole @default(ADMIN)
   specialty     String?
   phone         String?
   commissionPct Float    @default(0)
   isActive      Boolean  @default(true)
+  clinicId      String?
+  clinic        Clinic?  @relation(fields: [clinicId], references: [id])
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -42,9 +71,9 @@ model User {
 // PACIENTES
 // ─────────────────────────────────────────
 model Patient {
-  id            String    @id @default(cuid())
-  recordNumber  String    @unique
-  dni           String    @unique
+  id            String   @id @default(cuid())
+  recordNumber  String   @unique
+  dni           String
   firstName     String
   lastName      String
   birthDate     DateTime
@@ -56,10 +85,12 @@ model Patient {
   referredById  String?
   referredBy    Patient?  @relation("Referrals", fields: [referredById], references: [id])
   referrals     Patient[] @relation("Referrals")
-  loyaltyPoints Int       @default(0)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  loyaltyPoints Int      @default(0)
+  isActive      Boolean  @default(true)
+  clinicId      String?
+  clinic        Clinic?  @relation(fields: [clinicId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   medicalHistory  MedicalHistory?
   odontogram      Odontogram?
@@ -86,12 +117,12 @@ model MedicalHistory {
   patient             Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
   allergies           String[]
   allergyNotes        String?
-  hasHypertension     Boolean   @default(false)
-  hasDiabetes         Boolean   @default(false)
-  hasHeartDisease     Boolean   @default(false)
-  hasAsthma           Boolean   @default(false)
-  hasEpilepsy         Boolean   @default(false)
-  hasHIV              Boolean   @default(false)
+  hypertension        Boolean   @default(false)
+  diabetes            Boolean   @default(false)
+  heartDisease        Boolean   @default(false)
+  asthma              Boolean   @default(false)
+  epilepsy            Boolean   @default(false)
+  hiv                 Boolean   @default(false)
   hasCoagulationIssue Boolean   @default(false)
   otherConditions     String?
   currentMedications  String?
@@ -200,6 +231,8 @@ model Appointment {
   patient      Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
   doctorId     String
   doctor       User              @relation(fields: [doctorId], references: [id])
+  clinicId     String?
+  clinic       Clinic?           @relation(fields: [clinicId], references: [id])
   startTime    DateTime
   endTime      DateTime
   status       AppointmentStatus @default(PENDING)
@@ -217,19 +250,25 @@ model Appointment {
 // EVOLUCIONES / NOTAS CLINICAS
 // ─────────────────────────────────────────
 model ClinicalNote {
-  id          String   @id @default(cuid())
-  patientId   String
-  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId    String
-  doctor      User     @relation(fields: [doctorId], references: [id])
-  noteDate    DateTime @default(now())
-  procedure   String
-  toothCode   String?
-  description String
-  materials   String?
-  nextSession String?
-  audioUrl    String?
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  patientId    String
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinicId     String?
+  clinic       Clinic?  @relation(fields: [clinicId], references: [id])
+  doctorId     String?
+  doctor       User?    @relation(fields: [doctorId], references: [id])
+  noteDate     DateTime @default(now())
+  diagnosis    String?
+  treatment    String?
+  observations String?
+  toothNumber  String?
+  amount       Float?
+  procedure    String?
+  description  String?
+  materials    String?
+  nextSession  String?
+  audioUrl     String?
+  createdAt    DateTime @default(now())
 }
 
 // ─────────────────────────────────────────
@@ -274,6 +313,8 @@ model Quote {
   id          String      @id @default(cuid())
   patientId   String
   patient     Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinicId    String?
+  clinic      Clinic?     @relation(fields: [clinicId], references: [id])
   quoteNumber String      @unique
   status      QuoteStatus @default(DRAFT)
   validUntil  DateTime?
@@ -290,15 +331,15 @@ model Quote {
 }
 
 model QuoteItem {
-  id        String  @id @default(cuid())
-  quoteId   String
-  quote     Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
-  treatment String
-  toothCode String?
-  quantity  Int     @default(1)
-  unitPrice Float
-  discount  Float   @default(0)
-  total     Float
+  id          String  @id @default(cuid())
+  quoteId     String
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  description String
+  toothCode   String?
+  quantity    Int     @default(1)
+  unitPrice   Float
+  discount    Float   @default(0)
+  total       Float
 }
 
 // ─────────────────────────────────────────
@@ -315,17 +356,20 @@ enum PaymentMethod {
 }
 
 model Payment {
-  id        String        @id @default(cuid())
-  patientId String
-  patient   Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  quoteId   String?
-  quote     Quote?        @relation(fields: [quoteId], references: [id])
-  amount    Float
-  method    PaymentMethod
-  reference String?
-  notes     String?
-  paidAt    DateTime      @default(now())
-  createdAt DateTime      @default(now())
+  id          String        @id @default(cuid())
+  patientId   String
+  patient     Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinicId    String?
+  clinic      Clinic?       @relation(fields: [clinicId], references: [id])
+  quoteId     String?
+  quote       Quote?        @relation(fields: [quoteId], references: [id])
+  amount      Float
+  method      PaymentMethod
+  description String?
+  reference   String?
+  notes       String?
+  paymentDate DateTime      @default(now())
+  createdAt   DateTime      @default(now())
 
   commissions Commission[]
 }
@@ -373,6 +417,8 @@ model InventoryItem {
   costPrice    Float?
   supplier     String?
   expiryDate   DateTime?
+  clinicId     String?
+  clinic       Clinic?           @relation(fields: [clinicId], references: [id])
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
 
@@ -397,6 +443,8 @@ model Prescription {
   id          String             @id @default(cuid())
   patientId   String
   patient     Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinicId    String?
+  clinic      Clinic?            @relation(fields: [clinicId], references: [id])
   doctorId    String
   doctor      User               @relation(fields: [doctorId], references: [id])
   diagnosis   String?
@@ -570,6 +618,8 @@ model WhatsAppLog {
 model Campaign {
   id          String    @id @default(cuid())
   name        String
+  clinicId    String?
+  clinic      Clinic?   @relation(fields: [clinicId], references: [id])
   type        String
   message     String
   sentCount   Int       @default(0)

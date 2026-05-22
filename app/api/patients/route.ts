@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/auth";
 import { z } from "zod";
 
 const CreatePatientSchema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
-  dni: z.string().min(8).max(12),
+  dni: z.string().min(7).max(12),
   birthDate: z.string(),
   gender: z.enum(["M", "F", "O"]),
   phone: z.string().min(7),
@@ -16,22 +17,26 @@ const CreatePatientSchema = z.object({
 
 export async function GET(req: NextRequest) {
   try {
+    const authUser = await getAuthUser();
     const { searchParams } = req.nextUrl;
     const search = searchParams.get("q") ?? "";
     const page = Number(searchParams.get("page") ?? 1);
     const limit = Number(searchParams.get("limit") ?? 20);
 
+    const clinicFilter = authUser?.clinicId ? { clinicId: authUser.clinicId } : {};
+
     const where = search
       ? {
+          ...clinicFilter,
+          isActive: true,
           OR: [
             { firstName: { contains: search, mode: "insensitive" as const } },
             { lastName: { contains: search, mode: "insensitive" as const } },
             { dni: { contains: search } },
             { recordNumber: { contains: search } },
           ],
-          isActive: true,
         }
-      : { isActive: true };
+      : { ...clinicFilter, isActive: true };
 
     const [patients, total] = await Promise.all([
       prisma.patient.findMany({
@@ -73,11 +78,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const authUser = await getAuthUser();
     const body = await req.json();
     const data = CreatePatientSchema.parse(body);
 
     const year = new Date().getFullYear();
-    const count = await prisma.patient.count();
+    const clinicFilter = authUser?.clinicId ? { clinicId: authUser.clinicId } : {};
+    const count = await prisma.patient.count({ where: clinicFilter });
     const recordNumber = `HC-${year}-${String(count + 1).padStart(4, "0")}`;
 
     const patient = await prisma.patient.create({
@@ -86,6 +93,7 @@ export async function POST(req: NextRequest) {
         birthDate: new Date(data.birthDate),
         email: data.email || null,
         recordNumber,
+        clinicId: authUser?.clinicId ?? null,
         medicalHistory: { create: {} },
         odontogram: { create: { type: "ADULT" } },
       },
