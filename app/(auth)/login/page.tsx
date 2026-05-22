@@ -24,7 +24,7 @@ export default function LoginPage() {
       setError("Correo o contraseña incorrectos");
       setLoading(false);
     } else {
-      router.push("/pacientes");
+      router.push("/dashboard");
       router.refresh();
     }
   };

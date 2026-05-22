@@ -75,7 +75,7 @@ export default function RegisterPage() {
 
     // Si hay sesión activa → ir al dashboard
     if (data.session) {
-      router.push("/pacientes");
+      router.push("/dashboard");
       router.refresh();
     } else {
       // Supabase requiere confirmar email
