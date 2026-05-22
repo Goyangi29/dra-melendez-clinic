@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   icons: { icon: "/favicon.ico" },
 };
 
+// Inline script to prevent flash of wrong theme before React hydrates
+const themeScript = `(function(){try{var t=localStorage.getItem('dc-theme');var d=window.matchMedia('(prefers-color-scheme:dark)').matches;if(t==='dark'||(t===null&&d)){document.documentElement.classList.add('dark')}}catch(e){}})()`;
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -23,15 +26,9 @@ export default function RootLayout({
       className={`${geistSans.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      {/* Prevent flash of wrong theme */}
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('dc-theme');var d=window.matchMedia('(prefers-color-scheme:dark)').matches;if(t==='dark'||(t===null&&d)){document.documentElement.classList.add('dark')}})()`,
-          }}
-        />
-      </head>
-      <body className="h-full bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+      <body className="h-full bg-slate-50 dark:bg-slate-900">
+        {/* Runs synchronously before React to prevent theme flash */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
