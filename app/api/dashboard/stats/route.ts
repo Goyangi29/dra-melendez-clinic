@@ -84,8 +84,8 @@ export async function GET() {
       }),
     ]);
 
-    const revenueThisMonth = paymentsThisMonth._sum.amount?.toNumber() ?? 0;
-    const revenueLastMonth = paymentsLastMonth._sum.amount?.toNumber() ?? 0;
+    const revenueThisMonth = paymentsThisMonth._sum.amount ?? 0;
+    const revenueLastMonth = paymentsLastMonth._sum.amount ?? 0;
 
     const patientsGrowth = newPatientsLastMonth > 0
       ? (((newPatientsThisMonth - newPatientsLastMonth) / newPatientsLastMonth) * 100).toFixed(1)
