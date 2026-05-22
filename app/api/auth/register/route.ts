@@ -9,18 +9,39 @@ const Schema = z.object({
   clinicName: z.string().min(2),
 });
 
+function makeSlug(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .replace(/[áàäâ]/g, "a")
+      .replace(/[éèëê]/g, "e")
+      .replace(/[íìïî]/g, "i")
+      .replace(/[óòöô]/g, "o")
+      .replace(/[úùüû]/g, "u")
+      .replace(/ñ/g, "n")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 30) +
+    "-" +
+    Date.now().toString(36)
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const data = Schema.parse(body);
 
-    const slug = data.clinicName
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 40) + "-" + Date.now().toString(36);
+    // Si el usuario ya existe, devolver sus datos
+    const existingUser = await prisma.user.findUnique({
+      where: { supabaseId: data.supabaseId },
+      include: { clinic: true },
+    });
+    if (existingUser) {
+      return NextResponse.json({ user: existingUser, clinic: existingUser.clinic });
+    }
+
+    const slug = makeSlug(data.clinicName);
 
     const result = await prisma.$transaction(async (tx) => {
       const clinic = await tx.clinic.create({
@@ -31,7 +52,6 @@ export async function POST(req: NextRequest) {
           plan: "starter",
         },
       });
-
       const user = await tx.user.create({
         data: {
           supabaseId: data.supabaseId,
@@ -41,7 +61,6 @@ export async function POST(req: NextRequest) {
           clinicId: clinic.id,
         },
       });
-
       return { clinic, user };
     });
 
@@ -51,6 +70,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.issues }, { status: 400 });
     }
     console.error("[POST /api/auth/register]", error);
-    return NextResponse.json({ error: "Error al registrar" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Error al registrar", detail: String(error) },
+      { status: 500 }
+    );
   }
 }
