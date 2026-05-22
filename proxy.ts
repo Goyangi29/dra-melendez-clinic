@@ -30,8 +30,19 @@ export async function proxy(request: NextRequest) {
   const isAuth = path.startsWith("/login") || path.startsWith("/register");
   const isApi = path.startsWith("/api");
   const isStatic = path.startsWith("/_next") || path.startsWith("/favicon");
+  const isPublic = path === "/";
 
   if (isStatic || isApi) return response;
+
+  // Landing page: redirect logged-in users to dashboard
+  if (isPublic) {
+    if (user) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
+    return response;
+  }
 
   if (!user && !isAuth) {
     const url = request.nextUrl.clone();
