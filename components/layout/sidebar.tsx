@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, CalendarDays, FileText, DollarSign,
   Package, FlaskConical, MessageSquare, BarChart3, Settings,
   Stethoscope, ChevronLeft, ChevronRight, LogOut, User,
-  Sun, Moon, Zap,
+  Sun, Moon, Zap, Upload,
 } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -23,6 +23,7 @@ const navItems = [
   { label: "Laboratorio", href: "/laboratorio", icon: FlaskConical },
   { label: "WhatsApp CRM", href: "/crm", icon: MessageSquare },
   { label: "Reportes", href: "/reportes", icon: BarChart3 },
+  { label: "Importar", href: "/importar", icon: Upload },
   { label: "Configuración", href: "/configuracion", icon: Settings },
 ];
 
